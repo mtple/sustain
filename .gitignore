@@ -34,3 +34,8 @@ next-env.d.ts
 
 # vercel
 .vercel
+
+# foundry
+contracts/cache
+contracts/out
+contracts/lib
