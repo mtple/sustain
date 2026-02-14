@@ -1,73 +1,61 @@
 "use client";
 
 import {
-  ActionButtonsGrid,
-  BalanceCard,
+  AlbumArt,
+  AudioPlayer,
+  BalanceDisplay,
   LoginView,
-  ReceiveModal,
-  RecentActivity,
-  SendModal,
-  SkeletonView,
+  PaymentTicker,
+  PoweredByTempo,
+  SettlementView,
+  SustainButton,
+  TrackInfo,
   UserPill,
   WalletContainer,
-  WalletHeader,
 } from "@/components";
-import { useSend } from "@/hooks/useSend";
-import { useTransactionHistory } from "@/hooks/useTransactionHistory";
 import { useBalance } from "@/hooks/useBalance";
+import { useStream } from "@/hooks/useStream";
+import { useTrack } from "@/hooks/useTrack";
 import { usePrivy } from "@privy-io/react-auth";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useRef } from "react";
 
 export default function Home() {
   const { ready, authenticated, login, user } = usePrivy();
-  const [showSend, setShowSend] = useState(false);
-  const [showReceive, setShowReceive] = useState(false);
-  const [sendAmount, setSendAmount] = useState("");
-  const [recipient, setRecipient] = useState("");
-  const [memo, setMemo] = useState("");
-
   const walletAddress = user?.wallet?.address || "";
-  const { balance, loading } = useBalance(walletAddress);
-  const { send, isSending, error, txHash, reset } = useSend();
+  const { rawBalance, loading: balanceLoading, refetch: refetchBalance } = useBalance(walletAddress);
+  const { track, loading: trackLoading } = useTrack();
+
   const {
-    transactions: txHistory,
-    loading: txLoading,
-    error: txError,
-  } = useTransactionHistory(walletAddress, txHash || undefined);
+    phase,
+    currentCost,
+    payment,
+    error,
+    explorerLink,
+    handlePointerDown,
+    handlePointerUp,
+    resetToIdle,
+  } = useStream(track.walletAddress);
 
-  // Format transaction history for display
-  const transactions = txHistory.map((tx) => ({
-    type: tx.type,
-    amount: tx.amount,
-    timestamp: tx.formattedTimestamp,
-    hash: tx.hash,
-    memo: tx.memo,
-  }));
-
-  const handleSend = async () => {
-    try {
-      await send(recipient, sendAmount, memo);
-    } catch (err) {
-      // Error is already handled by the hook
-      console.error("Send failed:", err);
+  // Refetch balance when stream settles
+  const prevPhaseRef = useRef(phase);
+  useEffect(() => {
+    if (prevPhaseRef.current === "active" && phase === "settled") {
+      refetchBalance();
     }
-  };
+    prevPhaseRef.current = phase;
+  }, [phase, refetchBalance]);
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(walletAddress);
-  };
+  const showTicker = phase === "active";
+  const showSettlement = phase === "settled" && payment !== null;
+  const showButton = phase !== "settled";
 
   return (
     <>
-      {!authenticated && (
-        <div className="fixed inset-0 z-0 pointer-events-none">
-          <SkeletonView />
-        </div>
-      )}
       <AnimatePresence>
         {ready && !authenticated && <LoginView onLogin={login} />}
       </AnimatePresence>
+
       <AnimatePresence>
         {authenticated && (
           <>
@@ -77,56 +65,76 @@ export default function Home() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.4 }}
-              className="relative z-10 w-full"
+              className="relative z-10 w-full min-h-screen"
             >
               <WalletContainer>
-                <WalletHeader />
-                <BalanceCard
-                  balance={balance}
-                  walletAddress={walletAddress}
-                  onCopyAddress={copyToClipboard}
-                  loading={loading}
-                />
-                <ActionButtonsGrid
-                  onSendClick={() => setShowSend(true)}
-                  onReceiveClick={() => setShowReceive(true)}
-                />
-                <RecentActivity
-                  transactions={transactions}
-                  loading={txLoading}
-                  error={txError}
-                />
+                <div className="flex flex-col items-center gap-6 pt-16 pb-8">
+                  <BalanceDisplay
+                    rawBalance={rawBalance}
+                    currentCost={currentCost}
+                    isStreaming={phase === "active"}
+                    loading={balanceLoading}
+                  />
+
+                  {!trackLoading && (
+                    <>
+                      <AlbumArt
+                        imageUrl={track.imageUrl}
+                        active={phase === "active"}
+                      />
+
+                      <TrackInfo title={track.title} artist={track.artist} />
+
+                      <AudioPlayer src={track.audioUrl} />
+                    </>
+                  )}
+
+                  <AnimatePresence mode="wait">
+                    {showTicker && (
+                      <PaymentTicker
+                        key="ticker"
+                        currentCost={currentCost}
+                        depositDollars={1.0}
+                      />
+                    )}
+
+                    {showSettlement && (
+                      <SettlementView
+                        key="settlement"
+                        payment={payment}
+                        artistName={track.artist}
+                        explorerLink={explorerLink}
+                        onDone={resetToIdle}
+                      />
+                    )}
+                  </AnimatePresence>
+
+                  {showButton && (
+                    <SustainButton
+                      phase={phase}
+                      onPointerDown={handlePointerDown}
+                      onPointerUp={handlePointerUp}
+                    />
+                  )}
+
+                  {error && (
+                    <p
+                      className="text-xs text-center max-w-xs"
+                      style={{ color: "rgba(255,100,100,0.8)" }}
+                    >
+                      {error}
+                    </p>
+                  )}
+
+                  <div className="mt-4">
+                    <PoweredByTempo />
+                  </div>
+                </div>
               </WalletContainer>
             </motion.div>
           </>
         )}
       </AnimatePresence>
-      <SendModal
-        isOpen={showSend}
-        onClose={() => {
-          setShowSend(false);
-          reset();
-          setSendAmount("");
-          setRecipient("");
-          setMemo("");
-        }}
-        recipientAddress={recipient}
-        onRecipientChange={setRecipient}
-        amount={sendAmount}
-        onAmountChange={setSendAmount}
-        memo={memo}
-        onMemoChange={setMemo}
-        onConfirm={handleSend}
-        isSending={isSending}
-        error={error}
-        txHash={txHash}
-      />
-      <ReceiveModal
-        isOpen={showReceive}
-        onClose={() => setShowReceive(false)}
-        walletAddress={walletAddress}
-        onCopyAddress={copyToClipboard}
-      />
     </>
   );
 }

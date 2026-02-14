@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Naur",
-  description: "your money Naur",
+  title: "Sustain",
+  description: "Stream micropayments to artists",
 };
 
 export default function RootLayout({

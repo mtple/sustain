@@ -27,7 +27,7 @@ export function LoginView({ onLogin }: LoginViewProps) {
           className="text-center text-sm tracking-wide"
           style={{ color: "var(--text-secondary)" }}
         >
-          Connect your wallet to get started
+          Sign in to start listening
         </motion.p>
         <motion.div
           initial={{ opacity: 0, y: 10 }}

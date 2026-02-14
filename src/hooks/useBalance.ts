@@ -1,83 +1,60 @@
-import { alphaUsd } from "@/constants";
-import { useEffect, useState } from "react";
+import { alphaUsd, tempoModerato, RPC_URL } from "@/constants";
+import { useCallback, useEffect, useState } from "react";
 import { Abis } from "tempo.ts/viem";
-import { Address, createPublicClient, defineChain, formatUnits, http } from "viem";
-
-// Define Tempo Moderato chain
-const tempoModerato = defineChain({
-  id: 42431,
-  name: "Tempo Moderato",
-  nativeCurrency: { name: "AlphaUSD", symbol: "aUSD", decimals: 6 },
-  rpcUrls: {
-    default: { http: ["https://rpc.moderato.tempo.xyz"] },
-  },
-  feeToken: alphaUsd,
-});
+import { Address, createPublicClient, formatUnits, http } from "viem";
 
 const publicClient = createPublicClient({
   chain: tempoModerato,
-  transport: http("https://rpc.moderato.tempo.xyz"),
+  transport: http(RPC_URL),
 });
 
 export function useBalance(address: string | undefined) {
-  const [balance, setBalance] = useState<string>("0.00");
+  const [rawBalance, setRawBalance] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [hasInitialFetch, setHasInitialFetch] = useState(false);
 
+  const refetch = useCallback(async () => {
+    if (!address) return;
+    try {
+      const bal = (await publicClient.readContract({
+        address: alphaUsd,
+        abi: Abis.tip20,
+        functionName: "balanceOf",
+        args: [address as Address],
+      })) as unknown as bigint;
+
+      const decimals = (await publicClient.readContract({
+        address: alphaUsd,
+        abi: Abis.tip20,
+        functionName: "decimals",
+      })) as unknown as number;
+
+      setRawBalance(parseFloat(formatUnits(bal, decimals)));
+    } catch (error) {
+      console.error("Error fetching balance:", error);
+    }
+  }, [address]);
+
   useEffect(() => {
     if (!address) {
-      setBalance("0.00");
+      setRawBalance(0);
       setLoading(false);
       setHasInitialFetch(true);
       return;
     }
 
     const fetchBalance = async () => {
-      try {
-        const balance = (await publicClient.readContract({
-          address: alphaUsd,
-          abi: Abis.tip20,
-          functionName: "balanceOf",
-          args: [address as Address],
-        })) as unknown as bigint;
-
-        const decimals = (await publicClient.readContract({
-          address: alphaUsd,
-          abi: Abis.tip20,
-          functionName: "decimals",
-        })) as unknown as number;
-
-        const formatted = formatUnits(balance, decimals);
-        const number = parseFloat(formatted);
-
-        // Format with compact notation for large numbers
-        let displayBalance: string;
-        if (number >= 1_000_000) {
-          displayBalance = (number / 1_000_000).toFixed(2) + "M";
-        } else if (number >= 1_000) {
-          displayBalance = (number / 1_000).toFixed(2) + "K";
-        } else {
-          displayBalance = number.toFixed(2);
-        }
-
-        setBalance(displayBalance);
-      } catch (error) {
-        console.error("Error fetching balance:", error);
-        setBalance("0.00");
-      } finally {
-        // Only set loading to false after first successful fetch
-        if (!hasInitialFetch) {
-          setLoading(false);
-          setHasInitialFetch(true);
-        }
+      await refetch();
+      if (!hasInitialFetch) {
+        setLoading(false);
+        setHasInitialFetch(true);
       }
     };
 
     fetchBalance();
-    const interval = setInterval(fetchBalance, 10000); // Refresh every 10 seconds
-
+    const interval = setInterval(refetch, 10000);
     return () => clearInterval(interval);
-  }, [address, hasInitialFetch]);
+  }, [address, hasInitialFetch, refetch]);
 
-  return { balance, loading };
+  return { rawBalance, loading, refetch };
 }

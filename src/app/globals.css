@@ -11,12 +11,6 @@
 	--glass-border: rgba(255, 255, 255, 0.1);
 	--glass-border-hover: rgba(255, 255, 255, 0.2);
 
-	/* Accent colors */
-	--accent-primary: rgba(59, 130, 246, 0.6);
-	--accent-primary-solid: #3b82f6;
-	--accent-success: rgba(16, 185, 129, 0.6);
-	--accent-success-solid: #10b981;
-
 	/* Text colors */
 	--text-primary: rgba(255, 255, 255, 0.95);
 	--text-secondary: rgba(255, 255, 255, 0.6);

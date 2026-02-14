@@ -26,8 +26,8 @@ export function UserPill() {
         <div
           className="w-8 h-8 rounded-full flex items-center justify-center"
           style={{
-            background: "var(--accent-primary)",
-            border: "1px solid var(--accent-primary-solid)",
+            background: "rgba(255,255,255,0.1)",
+            border: "1px solid rgba(255,255,255,0.2)",
           }}
         >
           <span className="text-xs font-medium">
