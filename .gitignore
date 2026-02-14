@@ -36,6 +36,7 @@ next-env.d.ts
 .vercel
 
 # foundry
+cache/
 contracts/cache
 contracts/out
 contracts/lib
