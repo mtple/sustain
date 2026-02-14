@@ -3,10 +3,19 @@
 import { PrivyProvider as BasePrivyProvider } from "@privy-io/react-auth";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { tempo as configureTempo } from "tempo.ts/chains";
+import { defineChain } from "viem";
 
-const tempo = configureTempo({
-  feeToken: "0x20c0000000000000000000000000000000000001",
+const alphaUsd = "0x20c0000000000000000000000000000000000001";
+
+// Define Tempo Moderato chain
+const tempo = defineChain({
+  id: 42431,
+  name: "Tempo Moderato",
+  nativeCurrency: { name: "AlphaUSD", symbol: "aUSD", decimals: 6 },
+  rpcUrls: {
+    default: { http: ["https://rpc.moderato.tempo.xyz"] },
+  },
+  feeToken: alphaUsd,
 });
 
 const queryClient = new QueryClient();

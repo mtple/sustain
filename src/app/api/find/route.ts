@@ -52,6 +52,16 @@ export async function POST(request: NextRequest) {
 // Get a user by phone number or email by querying Privy's user management API
 // If a user doesn't exist, a new user will be created.
 async function getUser(identifier: string) {
+  // If it's already a wallet address, return a mock user object
+  if (identifier.startsWith("0x") && identifier.length === 42) {
+    return {
+      id: identifier,
+      linked_accounts: [
+        { type: "wallet", chain_type: "ethereum", address: identifier },
+      ],
+    };
+  }
+
   if (!identifier.includes("@")) {
     const user = await privy
       .users()

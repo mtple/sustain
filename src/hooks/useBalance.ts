@@ -1,17 +1,22 @@
 import { alphaUsd } from "@/constants";
 import { useEffect, useState } from "react";
-import { tempo as configureTempo } from "tempo.ts/chains";
 import { Abis } from "tempo.ts/viem";
-import { Address, createPublicClient, formatUnits, webSocket } from "viem";
+import { Address, createPublicClient, defineChain, formatUnits, http } from "viem";
 
-
-const tempo = configureTempo({
+// Define Tempo Moderato chain
+const tempoModerato = defineChain({
+  id: 42431,
+  name: "Tempo Moderato",
+  nativeCurrency: { name: "AlphaUSD", symbol: "aUSD", decimals: 6 },
+  rpcUrls: {
+    default: { http: ["https://rpc.moderato.tempo.xyz"] },
+  },
   feeToken: alphaUsd,
 });
 
 const publicClient = createPublicClient({
-  chain: tempo,
-  transport: webSocket("wss://rpc.testnet.tempo.xyz"),
+  chain: tempoModerato,
+  transport: http("https://rpc.moderato.tempo.xyz"),
 });
 
 export function useBalance(address: string | undefined) {

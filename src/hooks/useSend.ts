@@ -1,16 +1,29 @@
 import { alphaUsd } from "@/constants";
-import { toViemAccount, useWallets } from "@privy-io/react-auth";
+import { useWallets } from "@privy-io/react-auth";
 import { useState } from "react";
-import { tempo } from "tempo.ts/chains";
 import { tempoActions } from "tempo.ts/viem";
 import {
   createWalletClient,
+  createPublicClient,
   custom,
+  defineChain,
+  http,
   parseUnits,
   stringToHex,
   walletActions,
   type Address,
 } from "viem";
+
+// Define Tempo Moderato chain
+const tempoModerato = defineChain({
+  id: 42431,
+  name: "Tempo Moderato",
+  nativeCurrency: { name: "AlphaUSD", symbol: "aUSD", decimals: 6 },
+  rpcUrls: {
+    default: { http: ["https://rpc.moderato.tempo.xyz"] },
+  },
+  feeToken: alphaUsd,
+});
 
 export function useSend() {
   const { wallets } = useWallets();
@@ -33,16 +46,26 @@ export function useSend() {
     }
 
     try {
+      // Switch wallet to Tempo Moderato chain
+      await wallet.switchChain(tempoModerato.id);
+
       const provider = await wallet.getEthereumProvider();
+
+      // Use HTTP transport for reads (doesn't depend on wallet's chain)
+      const publicClient = createPublicClient({
+        chain: tempoModerato,
+        transport: http("https://rpc.moderato.tempo.xyz"),
+      }).extend(tempoActions());
+
       const client = createWalletClient({
         account: wallet.address as Address,
-        chain: tempo({ feeToken: alphaUsd }),
+        chain: tempoModerato,
         transport: custom(provider),
       })
         .extend(walletActions)
         .extend(tempoActions());
 
-      const metadata = await client.token.getMetadata({
+      const metadata = await publicClient.token.getMetadata({
         token: alphaUsd,
       });
       const recipient = await getAddress(to);

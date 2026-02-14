@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Input } from "./Input";
 import { LiquidGlassButton } from "./LiquidGlassButton";
 import { Modal } from "./Modal";
@@ -31,6 +32,16 @@ export function SendModal({
   error = null,
   txHash = null,
 }: SendModalProps) {
+  const [copied, setCopied] = useState(false);
+
+  const copyToClipboard = () => {
+    if (txHash) {
+      navigator.clipboard.writeText(txHash);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Send USDC">
       <div className="space-y-6">
@@ -60,12 +71,52 @@ export function SendModal({
             <p className="text-sm" style={{ color: "var(--text-primary)" }}>
               Transaction sent successfully!
             </p>
-            <p
-              className="text-xs font-mono break-all"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              {txHash.slice(0, 10)}...{txHash.slice(-8)}
-            </p>
+            <div className="flex items-center justify-center gap-2">
+              <a
+                href={`https://explore.tempo.xyz/tx/${txHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-mono break-all hover:underline cursor-pointer"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                {txHash}
+              </a>
+              <button
+                onClick={copyToClipboard}
+                className="flex-shrink-0 p-1 rounded hover:bg-white/10 transition-colors"
+                title={copied ? "Copied!" : "Copy to clipboard"}
+              >
+                {copied ? (
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="var(--accent-success-solid)"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="var(--text-secondary)"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                    />
+                  </svg>
+                )}
+              </button>
+            </div>
             <LiquidGlassButton
               onClick={onClose}
               fullWidth

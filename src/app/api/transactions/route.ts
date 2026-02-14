@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const TEMPO_EXPLORER_API = "https://explore.tempo.xyz/api";
-const TEMPO_RPC = "https://rpc.testnet.tempo.xyz";
+const TEMPO_RPC = "https://rpc.moderato.tempo.xyz";
 
 interface BlockInfo {
   result?: {
