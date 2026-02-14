@@ -6,23 +6,27 @@ import type { StreamPhase } from "@/hooks/useStream";
 
 interface SustainButtonProps {
   phase: StreamPhase;
+  settling: boolean;
   onPointerDown: () => void;
   onPointerUp: () => void;
 }
 
 export function SustainButton({
   phase,
+  settling,
   onPointerDown,
   onPointerUp,
 }: SustainButtonProps) {
   const isActive = phase === "active";
   const btnRef = useRef<HTMLButtonElement>(null);
 
-  // Store latest callbacks in refs so the native listener always sees current values
+  // Store latest callbacks/state in refs so the native listener always sees current values
   const onDownRef = useRef(onPointerDown);
   const onUpRef = useRef(onPointerUp);
+  const settlingRef = useRef(settling);
   onDownRef.current = onPointerDown;
   onUpRef.current = onPointerUp;
+  settlingRef.current = settling;
 
   useEffect(() => {
     const el = btnRef.current;
@@ -30,6 +34,7 @@ export function SustainButton({
 
     const handleDown = (e: PointerEvent) => {
       e.preventDefault();
+      if (settlingRef.current) return;
       onDownRef.current();
 
       const handleUp = () => {
@@ -68,9 +73,19 @@ export function SustainButton({
             : "rgba(255,255,255,0.04)",
           border: "1px solid rgba(255,255,255,0.15)",
           color: "var(--text-primary)",
+          opacity: settling ? 0.5 : 1,
+          pointerEvents: settling ? "none" : "auto",
         }}
       >
-        {isActive ? (
+        {settling ? (
+          <motion.span
+            className="text-sm uppercase tracking-widest"
+            animate={{ opacity: [0.4, 0.8, 0.4] }}
+            transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+          >
+            Settling...
+          </motion.span>
+        ) : isActive ? (
           <motion.span
             className="text-sm uppercase tracking-widest"
             animate={{ opacity: [0.6, 1, 0.6] }}

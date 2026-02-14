@@ -12,12 +12,7 @@ export function PaymentTicker({
   const pct = Math.min((currentCost / depositDollars) * 100, 100);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8 }}
-      className="flex flex-col items-center gap-3"
-    >
+    <div className="flex flex-col items-center gap-3">
       <span
         className="text-4xl font-mono"
         style={{
@@ -44,6 +39,6 @@ export function PaymentTicker({
           />
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

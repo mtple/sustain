@@ -7,7 +7,6 @@ import {
   LoginView,
   PaymentTicker,
   PoweredByTempo,
-  SettlementView,
   SustainButton,
   TrackInfo,
   UserPill,
@@ -18,7 +17,7 @@ import { useStream } from "@/hooks/useStream";
 import { useTrack } from "@/hooks/useTrack";
 import { usePrivy } from "@privy-io/react-auth";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export default function Home() {
   const { ready, authenticated, login, user } = usePrivy();
@@ -31,24 +30,51 @@ export default function Home() {
     currentCost,
     payment,
     error,
+    settling,
     explorerLink,
     handlePointerDown,
     handlePointerUp,
     resetToIdle,
   } = useStream(track.walletAddress);
 
-  // Refetch balance when stream settles
+  // Track last settlement info — persists until next press
+  const [lastPayment, setLastPayment] = useState<number | null>(null);
+  const [lastExplorerLink, setLastExplorerLink] = useState<string | null>(null);
+
+  // Auto-reset to idle after settlement, save the payment info
   const prevPhaseRef = useRef(phase);
   useEffect(() => {
     if (prevPhaseRef.current === "active" && phase === "settled") {
       refetchBalance();
+      if (payment !== null) setLastPayment(payment);
+      if (explorerLink) setLastExplorerLink(explorerLink);
+      resetToIdle();
     }
     prevPhaseRef.current = phase;
-  }, [phase, refetchBalance]);
+  }, [phase, payment, explorerLink, refetchBalance, resetToIdle]);
+
+  // Update last payment/link as they come in from on-chain (even after reset)
+  useEffect(() => {
+    if (payment !== null && phase === "idle" && lastPayment !== null) {
+      setLastPayment(payment);
+    }
+  }, [payment, phase, lastPayment]);
+
+  useEffect(() => {
+    if (explorerLink && phase === "idle" && lastExplorerLink !== null) {
+      setLastExplorerLink(explorerLink);
+    }
+  }, [explorerLink, phase, lastExplorerLink]);
+
+  // Clear last settlement when user presses sustain again
+  const onPointerDown = useCallback(() => {
+    setLastPayment(null);
+    setLastExplorerLink(null);
+    handlePointerDown();
+  }, [handlePointerDown]);
 
   const showTicker = phase === "active";
-  const showSettlement = phase === "settled" && payment !== null;
-  const showButton = phase !== "settled";
+  const showLastPayment = phase === "idle" && lastPayment !== null;
 
   return (
     <>
@@ -89,33 +115,57 @@ export default function Home() {
                     </>
                   )}
 
-                  <AnimatePresence mode="wait">
-                    {showTicker && (
-                      <PaymentTicker
-                        key="ticker"
-                        currentCost={currentCost}
-                        depositDollars={1.0}
-                      />
-                    )}
-
-                    {showSettlement && (
-                      <SettlementView
-                        key="settlement"
-                        payment={payment}
-                        artistName={track.artist}
-                        explorerLink={explorerLink}
-                        onDone={resetToIdle}
-                      />
-                    )}
-                  </AnimatePresence>
-
-                  {showButton && (
+                  <div className="relative w-full max-w-xs mx-auto mt-16">
+                    <AnimatePresence>
+                      {showTicker && (
+                        <motion.div
+                          key="ticker"
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0 }}
+                          className="absolute bottom-full left-0 right-0 mb-4"
+                        >
+                          <PaymentTicker
+                            currentCost={currentCost}
+                            depositDollars={1.0}
+                          />
+                        </motion.div>
+                      )}
+                      {showLastPayment && (
+                        <motion.div
+                          key="last-payment"
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0 }}
+                          className="absolute bottom-full left-0 right-0 mb-4 flex flex-col items-center gap-2"
+                        >
+                          <p
+                            className="text-sm font-light"
+                            style={{ color: "var(--text-secondary)" }}
+                          >
+                            Sent ${lastPayment.toFixed(3)} to {track.artist}
+                          </p>
+                          {lastExplorerLink && (
+                            <a
+                              href={lastExplorerLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs underline underline-offset-4 transition-colors hover:text-white/80"
+                              style={{ color: "var(--text-tertiary)" }}
+                            >
+                              View receipt
+                            </a>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                     <SustainButton
                       phase={phase}
-                      onPointerDown={handlePointerDown}
+                      settling={settling}
+                      onPointerDown={onPointerDown}
                       onPointerUp={handlePointerUp}
                     />
-                  )}
+                  </div>
 
                   {error && (
                     <p
