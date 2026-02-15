@@ -3,6 +3,7 @@ interface BalanceDisplayProps {
   currentCost: number;
   isStreaming: boolean;
   loading: boolean;
+  funding?: boolean;
 }
 
 export function BalanceDisplay({
@@ -10,8 +11,23 @@ export function BalanceDisplay({
   currentCost,
   isStreaming,
   loading,
+  funding,
 }: BalanceDisplayProps) {
   if (loading) return null;
+
+  if (funding) {
+    return (
+      <p
+        className="text-sm font-mono text-center"
+        style={{
+          color: "var(--text-tertiary)",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        Preparing account...
+      </p>
+    );
+  }
 
   // While streaming, subtract the $1 deposit and the accruing cost
   // The deposit is locked in the contract, cost ticks up from it

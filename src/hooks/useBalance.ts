@@ -11,7 +11,6 @@ const publicClient = createPublicClient({
 export function useBalance(address: string | undefined) {
   const [rawBalance, setRawBalance] = useState<number>(0);
   const [loading, setLoading] = useState(true);
-  const [hasInitialFetch, setHasInitialFetch] = useState(false);
 
   const refetch = useCallback(async () => {
     if (!address) return;
@@ -39,22 +38,29 @@ export function useBalance(address: string | undefined) {
     if (!address) {
       setRawBalance(0);
       setLoading(false);
-      setHasInitialFetch(true);
       return;
     }
 
+    // Reset loading state for a new address so consumers know
+    // the first real fetch hasn't completed yet.
+    setLoading(true);
+
+    let didCancel = false;
+
     const fetchBalance = async () => {
       await refetch();
-      if (!hasInitialFetch) {
+      if (!didCancel) {
         setLoading(false);
-        setHasInitialFetch(true);
       }
     };
 
     fetchBalance();
     const interval = setInterval(refetch, 10000);
-    return () => clearInterval(interval);
-  }, [address, hasInitialFetch, refetch]);
+    return () => {
+      didCancel = true;
+      clearInterval(interval);
+    };
+  }, [address, refetch]);
 
   return { rawBalance, loading, refetch };
 }

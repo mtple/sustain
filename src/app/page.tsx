@@ -14,6 +14,7 @@ import {
   WalletContainer,
 } from "@/components";
 import { useBalance } from "@/hooks/useBalance";
+import { useFundWallet } from "@/hooks/useFundWallet";
 import { useStream } from "@/hooks/useStream";
 import { useTrack } from "@/hooks/useTrack";
 import { usePrivy } from "@privy-io/react-auth";
@@ -24,6 +25,7 @@ export default function Home() {
   const { ready, authenticated, login, user } = usePrivy();
   const walletAddress = user?.wallet?.address || "";
   const { rawBalance, loading: balanceLoading, refetch: refetchBalance } = useBalance(walletAddress);
+  const { funding } = useFundWallet(walletAddress, rawBalance, !balanceLoading, refetchBalance);
   const { track, loading: trackLoading } = useTrack();
 
   const {
@@ -102,6 +104,7 @@ export default function Home() {
                     currentCost={currentCost}
                     isStreaming={phase === "active"}
                     loading={balanceLoading}
+                    funding={funding}
                   />
 
                   {!trackLoading && (
