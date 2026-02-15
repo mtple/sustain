@@ -181,8 +181,22 @@ export default function Home() {
                     </p>
                   )}
 
-                  <div className="mt-4">
+                  <div className="mt-4 flex flex-col items-center gap-1">
                     <PoweredByTempo />
+                    <p
+                      className="text-xs text-center"
+                      style={{ color: "var(--text-tertiary)" }}
+                    >
+                      Built by{" "}
+                      <a
+                        href="https://x.com/mattleefc"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline underline-offset-2 hover:text-white/80 transition-colors"
+                      >
+                        Matt Lee
+                      </a>
+                    </p>
                   </div>
                 </div>
               </WalletContainer>
