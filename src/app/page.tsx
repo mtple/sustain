@@ -8,6 +8,7 @@ import {
   PaymentTicker,
   PoweredByTempo,
   SustainButton,
+  SustainLogo,
   TrackInfo,
   UserPill,
   WalletContainer,
@@ -85,6 +86,7 @@ export default function Home() {
       <AnimatePresence>
         {authenticated && (
           <>
+            <SustainLogo />
             <UserPill />
             <motion.div
               initial={{ opacity: 0 }}

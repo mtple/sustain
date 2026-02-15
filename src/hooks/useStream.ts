@@ -77,9 +77,8 @@ export function useStream(creatorAddress: Address | undefined) {
   const txCycleActiveRef = useRef(false);
   /** Resolves when the full start+stop cycle is done on-chain */
   const txDoneRef = useRef<Promise<void>>(Promise.resolve());
-
-  // Average seconds between release and stopStream mining
-  const SETTLE_BUFFER_SECS = 4;
+  /** True while the user's pointer is physically held down */
+  const pointerDownRef = useRef(false);
 
   /** Estimate payment matching the contract's rate ($0.005/sec) with sub-second precision */
   const estimatePayment = useCallback(
@@ -195,18 +194,37 @@ export function useStream(creatorAddress: Address | undefined) {
 
   const settlingRef = useRef(false);
 
+  /** Settle the UI immediately with an estimate */
+  const settleUI = useCallback((estimatedPayment: number) => {
+    stopTicker();
+    clearAutoStop();
+    phaseRef.current = "settled";
+    settlingRef.current = true;
+    setState((prev) => ({
+      ...prev,
+      phase: "settled",
+      payment: estimatedPayment,
+      settling: true,
+    }));
+  }, [stopTicker, clearAutoStop]);
+
   // --- Pointer down ---
   const handlePointerDown = useCallback(async () => {
     if (!creatorAddress) return;
     if (phaseRef.current !== "idle" && phaseRef.current !== "settled") return;
     if (settlingRef.current) return;
 
+    pointerDownRef.current = true;
+
     // Wait for any previous stop tx to finish before starting a new stream
     await txDoneRef.current;
 
+    // User may have released during the await — still proceed with the
+    // cycle, the tx flow will detect the release via pointerDownRef/pendingStopRef
+
     const streamStartMs = Date.now();
     currentCostRef.current = 0;
-    pendingStopRef.current = false;
+    pendingStopRef.current = !pointerDownRef.current; // already released?
     onChainStartRef.current = null;
 
     setState({
@@ -220,34 +238,11 @@ export function useStream(creatorAddress: Address | undefined) {
     phaseRef.current = "active";
     startTicker(streamStartMs);
 
-    // Auto-stop after 60s — settle UI immediately, tx fires from the async flow
+    // Auto-stop after 60s
     autoStopRef.current = setTimeout(() => {
       if (phaseRef.current !== "active") return;
       pendingStopRef.current = true;
-      stopTicker();
-      // At 60s cap the contract charges 60 * $0.005 = $0.30
-      const estimatedPayment = estimatePayment(60);
-      phaseRef.current = "settled";
-      settlingRef.current = true;
-      setState((prev) => ({
-        ...prev,
-        phase: "settled",
-        payment: estimatedPayment,
-        settling: true,
-      }));
-
-      // If the tx cycle already finished, fire the stop ourselves
-      if (!txCycleActiveRef.current) {
-        const stopCycle = (async () => {
-          try {
-            await doStopRef.current();
-          } finally {
-            settlingRef.current = false;
-            setState((prev) => ({ ...prev, settling: false }));
-          }
-        })();
-        txDoneRef.current = stopCycle;
-      }
+      settleUI(estimatePayment(60));
     }, 60_000);
 
     // Fire transactions in background — txDoneRef tracks completion
@@ -303,30 +298,38 @@ export function useStream(creatorAddress: Address | undefined) {
         await publicClient.waitForTransactionReceipt({ hash: startHash });
 
         // Stream is now live on-chain.
-        // If user already released (or auto-stop fired), stop immediately
-        // using the same clients to avoid re-resolving wallet/provider.
+        // Check if user released (or auto-stop fired) during tx — stop immediately.
         if (pendingStopRef.current) {
           await doStopRef.current({ publicClient, walletClient, address });
           return;
         }
 
-        // User is still holding — show the start tx hash
+        // User is still holding — show the start tx hash and wait for release.
+        // The stop will be triggered by handlePointerUp setting pendingStopRef.
         if (phaseRef.current === "active") {
           setState((prev) => ({ ...prev, txHash: startHash }));
         }
+
+        // Wait for the user to release — poll pendingStopRef
+        await new Promise<void>((resolve) => {
+          const check = () => {
+            if (pendingStopRef.current) { resolve(); return; }
+            setTimeout(check, 50);
+          };
+          check();
+        });
+
+        // User released — fire stop
+        await doStopRef.current({ publicClient, walletClient, address });
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed to start";
-        // If still active (user hasn't released yet), reset to idle
         if (phaseRef.current === "active") {
           stopTicker();
           clearAutoStop();
           phaseRef.current = "idle";
-          settlingRef.current = false;
-          setState((prev) => ({ ...prev, phase: "idle", error: msg, settling: false }));
-        } else {
-          // UI already settled — just show the error alongside the settlement
-          setState((prev) => ({ ...prev, error: msg }));
         }
+        settlingRef.current = false;
+        setState((prev) => ({ ...prev, phase: "idle", error: msg, settling: false }));
       } finally {
         txCycleActiveRef.current = false;
         settlingRef.current = false;
@@ -334,55 +337,31 @@ export function useStream(creatorAddress: Address | undefined) {
       }
     })();
     txDoneRef.current = txCycle;
-  }, [creatorAddress, getClients, startTicker, stopTicker, clearAutoStop, estimatePayment]);
+  }, [creatorAddress, getClients, startTicker, stopTicker, clearAutoStop, estimatePayment, settleUI]);
 
-  // --- Pointer up: settle UI instantly with estimate, exact value fills in later ---
+  // --- Pointer up: signal release, settle UI if active ---
   const handlePointerUp = useCallback(() => {
-    if (phaseRef.current !== "active") return;
+    pointerDownRef.current = false;
     if (pendingStopRef.current) return;
     pendingStopRef.current = true;
-    stopTicker();
-    clearAutoStop();
 
-    // Estimate: use current ticker value, rounded to 3 decimal places
-    // to match the settlement display format
-    const raw = currentCostRef.current;
-    const estimatedPayment =
-      Math.round(Math.max(raw, 0.001) * 1000) / 1000;
-
-    phaseRef.current = "settled";
-    settlingRef.current = true;
-    setState((prev) => ({
-      ...prev,
-      phase: "settled",
-      payment: estimatedPayment,
-      settling: true,
-    }));
-
-    // If the tx cycle already finished (startStream confirmed, user was still
-    // holding, cycle exited showing the start hash), we need to fire the stop
-    // ourselves — the cycle won't do it since it already returned.
-    if (!txCycleActiveRef.current) {
-      const stopCycle = (async () => {
-        try {
-          await doStopRef.current();
-        } finally {
-          settlingRef.current = false;
-          setState((prev) => ({ ...prev, settling: false }));
-        }
-      })();
-      txDoneRef.current = stopCycle;
+    // Only settle UI if we're in an active stream visually
+    if (phaseRef.current === "active") {
+      const raw = currentCostRef.current;
+      const estimatedPayment =
+        Math.round(Math.max(raw, 0.001) * 1000) / 1000;
+      settleUI(estimatedPayment);
     }
-  }, [stopTicker, clearAutoStop]);
+  }, [settleUI]);
 
   const resetToIdle = useCallback(() => {
     stopTicker();
     clearAutoStop();
     phaseRef.current = "idle";
     currentCostRef.current = 0;
-    pendingStopRef.current = false;
     onChainStartRef.current = null;
-    // Keep settling state — it's cleared by the tx cycle completing
+    // Don't reset pendingStopRef — the tx cycle may still be
+    // polling it to know the user released.
     setState((prev) => ({
       phase: "idle",
       currentCost: 0,

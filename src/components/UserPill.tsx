@@ -4,10 +4,14 @@ import { usePrivy } from "@privy-io/react-auth";
 export function UserPill() {
   const { user, logout } = usePrivy();
 
-  const displayAddress = user?.wallet?.address || "";
-  const shortAddress = displayAddress
-    ? `${displayAddress.slice(0, 6)}...${displayAddress.slice(-4)}`
-    : "";
+  const email = user?.email?.address;
+  const walletAddress = user?.wallet?.address || "";
+
+  const avatarLabel = email
+    ? email.charAt(0).toUpperCase()
+    : walletAddress
+      ? walletAddress.slice(2, 4).toUpperCase()
+      : "";
 
   return (
     <motion.div
@@ -31,12 +35,9 @@ export function UserPill() {
           }}
         >
           <span className="text-xs font-medium">
-            {displayAddress ? displayAddress.slice(2, 4).toUpperCase() : ""}
+            {avatarLabel}
           </span>
         </div>
-        <span className="text-sm font-mono" style={{ color: "var(--text-secondary)" }}>
-          {shortAddress}
-        </span>
         <button
           onClick={logout}
           className="p-1 rounded transition-colors hover:bg-white/20"

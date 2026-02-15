@@ -78,13 +78,17 @@ export function SustainButton({
         }}
       >
         {settling ? (
-          <motion.span
-            className="text-sm uppercase tracking-widest"
-            animate={{ opacity: [0.4, 0.8, 0.4] }}
-            transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-          >
-            Settling...
-          </motion.span>
+          <motion.div
+            className="w-5 h-5 mx-auto rounded-full border-2 border-transparent"
+            style={{
+              borderTopColor: "rgba(255,255,255,0.6)",
+              borderRightColor: "rgba(255,255,255,0.2)",
+              borderBottomColor: "rgba(255,255,255,0.2)",
+              borderLeftColor: "rgba(255,255,255,0.2)",
+            }}
+            animate={{ rotate: 360 }}
+            transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+          />
         ) : isActive ? (
           <motion.span
             className="text-sm uppercase tracking-widest"

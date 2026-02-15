@@ -12,3 +12,4 @@ export { PaymentTicker } from "./PaymentTicker";
 export { SettlementView } from "./SettlementView";
 export { BalanceDisplay } from "./BalanceDisplay";
 export { PoweredByTempo } from "./PoweredByTempo";
+export { SustainLogo } from "./SustainLogo";
