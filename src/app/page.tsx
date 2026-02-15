@@ -191,7 +191,7 @@ export default function Home() {
                     >
                       Built by{" "}
                       <a
-                        href="https://x.com/mattleefc"
+                        href="https://mattlee.world"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="underline underline-offset-2 hover:text-white/80 transition-colors"
