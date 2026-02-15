@@ -4,6 +4,7 @@ import {
   AlbumArt,
   AudioPlayer,
   BalanceDisplay,
+  InfoButton,
   LoginView,
   PaymentTicker,
   PoweredByTempo,
@@ -89,6 +90,7 @@ export default function Home() {
         {authenticated && (
           <>
             <SustainLogo />
+            <InfoButton />
             <UserPill />
             <motion.div
               initial={{ opacity: 0 }}

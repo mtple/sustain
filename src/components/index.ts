@@ -13,3 +13,4 @@ export { SettlementView } from "./SettlementView";
 export { BalanceDisplay } from "./BalanceDisplay";
 export { PoweredByTempo } from "./PoweredByTempo";
 export { SustainLogo } from "./SustainLogo";
+export { InfoButton } from "./InfoButton";
